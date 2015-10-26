@@ -1,0 +1,183 @@
+/*
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %                                                                       %
+    %  Copyright (C) 2012-2014 Sumantra Sarkar, Bulbul Chakraborty          %
+    %                                                                       %
+    %  This file is part of the ForceTile program.                          %
+    %                                                                       %
+    %  The ForceTile program is free software; you can redistribute it      %
+    %  and/or modify it under the terms of the GNU General Public License   %
+    %  version 3 as published by the Free Software Foundation.              %
+    %                                                                       %
+    %  See the file COPYING for details.                                    %
+    %                                                                       %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+	dual_Adj.cpp
+
+Author: Sumantra Sarkar
+	Martin Fisher School of Physics
+	Brandeis University
+	forcetileenquiries@gmail.com
+
+Function: Generates the topology of the dual graph.
+	  If two minimal cycles share an edge between them, then they are neighbors.
+	  The output is written in a file called dual_Adj.txt and has four columns
+	  Cycle ID #1	Cycle ID #2	Vert ID #1	Vert ID #2
+
+	  Cycle IDs are the IDs of the minimal cycle genereated by the Minimum Cycle Basis (MCB) code.
+	  Vert  IDs are the IDs of the vertices of the edge shared between Cycle #1 and Cycle #2.
+
+*/
+
+
+
+
+
+
+
+#include <iostream>
+#include <map>
+#include <vector>
+#include <algorithm>
+#include <fstream>
+#include <string>
+#include <sstream>
+
+using namespace std;
+
+void intersect(vector<int>& first, vector<int>& second,
+				vector<int>& v)
+{
+	vector<int>::iterator it;
+	sort(first.begin(), first.end());
+	sort(second.begin(), second.end());
+
+	it = set_intersection (first.begin(),first.end(),
+							second.begin(),second.end(),
+							v.begin());
+
+	v.resize(it - v.begin());
+
+
+
+}
+
+/*
+void stream_reader(istream& stream, map<int,vector<int>>& cycles)
+{
+    string line;
+    getline (stream,line);
+    cout << line << endl;
+}
+*/
+
+
+void parse(string *ext, vector<int>&types)
+{
+	istringstream iss(*ext);
+	string token;
+	// you can replace ' ' with whatever you
+	// would like to parse at
+	while(getline(iss,token,' '))
+		types.push_back(atoi(token.c_str())); // push numbers into vector
+}
+
+void file_reader(map<int,vector<int> >& cycles)
+{
+
+    //ifstream myfile ("example.txt");
+    //myfile.open();
+    ifstream myfile ("Cycles_PlanarGraph.txt");
+
+    string line;
+    int cidx = 1;
+    if (myfile.is_open())
+    {
+        while (myfile.good())
+        {
+          //stream_reader(myfile, cycles);
+
+        	getline (myfile,line);
+        	//cout <<line<<endl;
+        	//cycles[cidx].push_back(atoi(line.c_str()));
+
+        	parse(&line, cycles[cidx]);
+        	cidx++;
+        }
+
+        myfile.close();
+    }
+    else
+    {
+        cout << "Unable to open Cycles_PlanarGraph.txt";
+    }
+}
+
+void print_dual_Adj(map<int,vector<int> >& cycles)
+{
+    ofstream fout("dual_Adj.txt",ios::out|ios::app);
+
+    //fout.open();
+
+
+    for(int i = 2; i<cycles.size(); i++)
+    {
+        for(int j = 1; j < i; j++)
+           {
+               vector<int> v(1000);
+               intersect(cycles[i],cycles[j],v);
+
+               if (v.size()==2)
+                {
+                    fout<<i<<"\t"<<j<<"\t"<<v[0]<<"\t"<<v[1]<<"\n";
+                    //cout<<i<<"\t"<<j<<"\t"<<v[0]<<"\t"<<v[1]<<"\n";
+                }
+
+
+           }
+
+    }
+
+    fout.close();
+}
+
+
+
+
+int main()
+{
+
+	map<int,vector<int> > cycles;
+
+	file_reader(cycles);
+
+	print_dual_Adj(cycles);
+
+	//cycles[1] = {1,2,5,4};
+	//cycles[2] = {3,4,5,8,10};
+
+
+/*	vector<int>::iterator it;
+
+
+    vector<int> v1 = cycles[cycles.size()-1];
+    for (it=v1.begin(); it!=v1.end(); ++it)
+	    std::cout << ' ' << *it;
+	  std::cout << '\n';
+
+
+
+	cout << "The intersection has " << (cycles.size()) << " elements:\n";
+
+
+	  for (it=v.begin(); it!=v.end(); ++it)
+	    std::cout << ' ' << *it;
+	  std::cout << '\n';
+*/
+	  return 0;
+
+
+}

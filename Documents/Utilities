@@ -1,0 +1,15 @@
+DEC 23 2014
+-----------
+
+1. Modified the README file. 
+2. Added a CHANGELOG file. 
+3. Added Minimum Cycle Basis.pdf
+4. Added FTN_Algo.pdf 
+5. Added the matlab code to generate the force tile topology.
+
+DEC 28 2014
+-----------
+ 
+1. Removed a bug from wgPlot1.m 
+
+

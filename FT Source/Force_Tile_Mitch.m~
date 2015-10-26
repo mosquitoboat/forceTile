@@ -1,0 +1,424 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                       %
+%  Copyright (C) 2012-2014 Sumantra Sarkar, Bulbul Chakraborty          %
+%                                                                       %
+%  This file is part of the ForceTile program.                          %
+%                                                                       %
+%  The ForceTile program is free software; you can redistribute it      %
+%  and/or modify it under the terms of the GNU General Public License   %
+%  version 3 as published by the Free Software Foundation.              %
+%                                                                       %
+%  See the file COPYING for details.                                    %
+%                                                                       %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Author: Sumantra Sarkar                                               %
+%         Martin Fisher School of Physics                               %
+%         Brandeis University                                           %
+%         forcetileenquiries@gmail.com                                  %
+%                                                                       %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+%%%%%%%%%%%%%% Force Tile Code for Lenka's Data %%%%%%%%%%%%%%%%%%%
+
+ 
+
+% clear all
+%% Load Raw Data
+ N = 240; 
+ geo = 1; 
+ maxSeed = 100;
+ xythresh = 1;
+ first_step = -5;
+last_step  = -1;
+config = ['Mitch_N' num2str(N) '_geo' num2str(1) 'TO' num2str(maxSeed)];%'_geo' num2str(geo)];%'Thibault_0.86'; 
+runid = ['_Compression_' num2str(first_step) 'TO' num2str(last_step)]; 
+
+folder = '../Data/Raw/'; 
+
+% datafile = [folder 'rawData_' config runid '.mat'];%'_thresh_' num2str(xythresh) '.mat']; 
+datafile = [folder 'rawData_' config runid '_thresh_' num2str(xythresh) '.mat']; 
+
+ destination = '../Data/'; 
+
+if (~exist(destination,'dir'))
+    mkdir(destination); 
+end
+
+% Stepid = ['_Steps' Stepid];
+
+
+% savefile = [destination 'rawData_' config Stepid '.mat']; 
+
+
+data = load(datafile); 
+
+rawData = data.rawData; 
+Lx = data.Lx; 
+Ly = data.Ly; 
+xythresh = data.xythresh;
+grainid = data.gid;
+clear data
+
+nSteps = length(rawData); 
+
+%% Variable Declaration
+
+mP = nan(nSteps,1); 
+% sP = mP; 
+
+mT = mP; 
+% sT = mP; 
+
+mA = mP; 
+mT1 = mP; 
+mT2 = mP; 
+mPe = mP;
+
+% sA = mP; 
+% sXPe = mP; 
+% sPe = mP;
+
+% mMa = mP;
+% mMi = mP; 
+mPFT = mP;
+mTFT = mP; 
+
+
+realCell = cell(maxSeed,nSteps); 
+dualCell = cell(maxSeed,nSteps); 
+geomCell = cell(nSteps,1); 
+
+%% Start Analysis
+for seed = 1:maxSeed
+    
+    realCell = cell(20,nSteps); 
+    dualCell = cell(20,nSteps); 
+    
+for steps =1:5% 2:1:nSteps
+    %% Adjacency Matrix
+    posData = rawData{seed,steps}.pF; 
+    forceData = rawData{seed,steps}.fF;  
+
+    eliminateRattlers = false;
+
+    realConfig = Generate_Adjacency_Matrix(posData,forceData, eliminateRattlers); 
+
+    realConfig.PBC = 0; 
+    realConfig.Friction = false; 
+    
+    realConfig.GrainId  = grainid; 
+    
+    %% Compute Stress Tensor (Optional)
+
+%         xyd = realConfig.xyd; 
+%         
+%         x = xyd(:,1); y = xyd(:,2); 
+%         
+%         Lx = max
+        realConfig.Strn = 0; 
+        realConfig.Lx = Lx; 
+        realConfig.Ly = Ly; 
+        realConfig.xythresh = xythresh; 
+        realConfig.PBC = 1; 
+%         realConfig = Calc_Stress_Tensor(realConfig);
+%             
+%         eval = abs(realConfig.StressEigVal); 
+%         ST = realConfig.GlobalST; 
+%         ev = (eig(ST)); 
+%         P = abs(ev(1)+ev(2)); 
+%         tau = abs(ev(2) - ev(1));
+%         
+%         realConfig.P = P; 
+%         realConfig.T = tau; 
+%         P = abs(eval(:,2) + eval(:,1))/2;
+%         tau = abs(eval(:,2) - eval(:,1))/2; 
+%         anisotropy = tau./P; 
+    %% Compute the minimal cycles 
+    
+    MinCycles = Compute_Minimal_Cycles(realConfig); 
+    realConfig.MinCycles = MinCycles; 
+    %% Obtain topology of the force tiles
+
+    FTConfig = Generate_Dual_Adj_Mat(realConfig, MinCycles); 
+
+    %% Compute the height vertices 
+
+    FTConfig = Compute_Height_Vertices(FTConfig); 
+
+    %% Compute the cycles of the dual graph and grain index
+
+       Zmax = max(realConfig.Z); 
+
+        if (~isempty(FTConfig.xy))
+
+            vert    = FTConfig.xy; 
+            Adj     = FTConfig.Adj; 
+            cycles  = MinCycles.MCB; 
+
+            [Gidx,loc,dCycle,dAdj] = Find_FT_Index(vert,Adj,cycles,Zmax);
+        end
+
+        clear vert Adj cycles 
+
+    FTConfig.Cycles = dCycle; 
+    FTConfig.GrainIndex = Gidx; 
+    FTConfig.FTCenters = loc; 
+    FTConfig.dAdj = dAdj;
+
+
+    %% Find the geometric properties (Area etc) of the Force Tile
+% 
+%          FTGeometry = Compute_Geometric_Properties_of_Tiles(FTConfig); 
+% 
+%          Area = FTGeometry.Area; 
+%          Peri = FTGeometry.Perimeter; 
+%         rArea = FTGeometry.RPArea; 
+% 
+%            
+% %           Seval = FTConfig.ShapeEigVal; 
+% %           
+% %           Ellipse = FTConfig.Ellipse; 
+% %           Z = FTConfig.Z;   
+% %    
+% %           majA = Ellipse(:,2); 
+% %           minA = Ellipse(:,1); 
+%           
+%          
+%           Tau1 = sqrt(Peri.^2 - Area); %(majA - minA).*cos(theta); 
+%           Tau2 = sqrt(rArea- Area);   
+          
+         realCell(seed,steps) = {realConfig};
+        dualCell(seed,steps) = {FTConfig}; 
+%         geomCell(steps) = {FTGeometry}; 
+          
+    %% Mean Values 
+        
+          id = ~isnan(Gidx); 
+        Gidx = Gidx(id); 
+        
+%         mP(steps) = P ; %mean(P(Gidx)); 
+% %         sP(steps) = std(P(Gidx)); 
+%         
+%         mT(steps) = tau ; %mean(tau(Gidx)); 
+% %         sT(steps) = std(tau(Gidx)); 
+%         
+%         mA(steps) = mean(Area(id)); 
+%         mT1(steps) = mean(Tau1(id)); 
+%         mT2(steps) = mean(Tau2(id)); 
+%         mPe(steps) = mean(Peri(id)); 
+%         
+%         sA(steps) = std(Area(id)); 
+%         sXPe(steps) = std(Ecc(id)); 
+%         sPe(steps) = std(Peri(id)); 
+        
+        %% Find the global aspect ratio
+%          
+%       xy = FTConfig.xy; 
+%         k = boundary(xy(:,1), xy(:,2)); 
+%         
+% 
+%              XY = [xy(k,1) xy(k,2)]';
+%              
+%                  mBB = minBoundingBox(XY); 
+%         [pgx,pgy,area1,peri1] = minboundparallelogram(XY(1,:),XY(2,:),'a');
+%         
+%         mBP = [pgx(1:5) pgy(1:5)]';
+%         
+%         
+%         Fx = [pgx(1)-pgx(4) pgy(1) - pgy(4)]; 
+%         Fy = [pgx(3)-pgx(4) pgy(3) - pgy(4)];
+% %         Fx(Fx<0) = 0; Fy(Fy<0) = 0; 
+%         Lx = realConfig.Lx; 
+%         Ly = realConfig.Ly; 
+%         
+% %         L1 = Lx; %min([Lx Ly]); 
+% %         L2 = Ly; %max([Lx Ly]); 
+%         
+%         
+%         if (abs(Fx(1))>abs(Fx(2)))
+%             F = [sign(Fx(1))*[Fx(1) Fx(2)]; sign(Fy(2))*[Fy(1) Fy(2)]];
+%         else
+%             F = [sign(Fy(1))*[Fy(1) Fy(2)]; sign(Fx(2))*[Fx(1) Fx(2)]];
+%         end
+%         
+% %         if (norm(Fx') > norm(Fy'))
+% %             L = [L1 0; 0 L2]; 
+% %         else
+% %             L = [L2 0; 0 L1]; 
+% %         end
+% 
+%         L = [Lx 0; 0 Ly]/min([Lx Ly]); 
+%         
+%         Sigma = L*F;  
+%         
+%         Sigma = 0.5*(Sigma + Sigma'); 
+%         
+%         EV = eig(Sigma); 
+%         
+%         PG = sum(EV)/2; 
+%         DG = abs(diff(EV))/2; 
+%         AnG =  DG/PG
+%         
+%         mPFT(steps) = PG; 
+%         mTFT(steps) = DG; 
+%         
+%         
+% %              peri2 = Calc_Perimeter(XY');
+% %              area2 = polyarea(XY(1,:),XY(2,:));
+% %              
+% %              xsArea1 = (peri1/4)^2 - area1; 
+% %              xsArea2 = (peri2/4)^2 - area2; 
+% %              
+% %              PG = peri1/4; DG = sqrt(xsArea1); 
+% %              
+%              h = PG - DG; 
+%              w = PG + DG; 
+%              
+%              
+%              
+%     
+%          xy = xy';  
+%         
+% %         dist = pdist(mBB'); 
+% %     
+% %         dist = sort(dist(1:3)); 
+% %     
+% %         w = dist(1); 
+% %         l = dist(2);    
+% %         
+% % %          v1 = mBB(:,2) - mBB(:,1);
+% % %          v2 = mBB(:,3) - mBB(:,2);   
+% %          
+% %          v1 = (mBP(:,2) - mBP(:,1));
+% %          v2 = mBP(:,4) - mBP(:,1);  
+% %          
+% %          S = [v1(1) v1(2); v2(1) v2(2)]; 
+% %          
+% %          EV = eig(S); 
+% %     %     minor = (min([A(1) A(4)])); 
+% %     %     major = (max([A(1) A(4)])); 
+% % %         minor = sqrt(1./(max(eval))); 
+% % %         major = sqrt(1./(min(eval))); 
+% %         mMa(steps) = max(abs(EV)); 
+% %         mMi(steps) = min(abs(EV)); 
+% %     
+% %         
+% %         % Save results
+% %         
+        
+        
+        
+
+        
+    %% Plot the Contact Network and Force Tile
+    
+%     display(['Step ' num2str(steps) ' ends'])
+    
+%     id = XY(2,:) == min(XY(2,:)); 
+% %     a = sortrows(XY'); 
+%     a = XY(:,id); 
+    
+    
+%     figure(1), 
+%     plot(XY(1,:),XY(2,:),mBP(1,:),mBP(2,:))
+  
+% close all 
+
+
+% if (realConfig.Friction == false)
+%     realConfig.GrainId  = grainid; 
+%     ncol = max(grainid); 
+% else
+%     ncol = 64; 
+% end
+ncol = N; 
+    figure(1), 
+        clf
+        figure(2),
+        clf
+        colmap = othercolor('RdBu9',ncol);%othercolor('RdYlBu4',ncol); 
+        graphMap= othercolor('Pastel24',ncol);%winter(ncol); 
+        plot_Grains_and_FT(realConfig, FTConfig, colmap,graphMap)
+        title(seed)
+        drawnow
+%     figure(3),
+%         graphMap= othercolor('RdYlGn5',64); 
+%         graphplot(realConfig,FTConfig,graphMap)
+%           mtit(num2str(steps))
+%         drawnow
+        
+%         subplot(1,2,2)
+%         hold on 
+%         plot(XY(1,:),XY(2,:),mBP(1,:),mBP(2,:))
+%         hold off
+%         mtit(num2str(steps))
+%         drawnow
+        
+        
+%         figure(1),
+        
+%         scatter(tau(Gidx).*cos(theta(id)), Ecc(id),'MarkerEdgeColor',[steps 0 0]/nSteps);
+%         hold on
+%         xlabel('\tau')
+%         ylabel('Major - Minor')
+%         title(num2str(steps-1))
+        
+        
+%         figure(2),
+% %         Peri(id).^2./Z(id) - Area(id)
+%         scatter(tau(Gidx),majA(id)-minA(id),'MarkerEdgeColor',[0 steps 0]/nSteps);
+%         hold on 
+%         xlabel('\tau')
+%         ylabel('Area')
+%         clf
+%         scatter(1- 1./Aspect(id), anisotropy(id))
+%         hold on 
+%         scatter(Ecc(id), anisotropy(id),'r')
+%         hold off
+        
+        
+%         figure(3),
+% %         clf
+%         
+% %         scatter(Seval(id,1),eval(Gidx,1),Seval(id,2),eval(Gidx,2));
+%         cPeri = FTConfig.Perimeter; 
+% %         scatter(cPeri./max(cPeri), Ecc./cPeri); 
+% %         hold on 
+% %         scatter(P(Gidx)./max(P(Gidx)), anisotropy(Gidx),'r'); 
+% %         scatter(P(Gidx), cPeri(id).^2,'MarkerEdgeColor',[0 0 steps]/nSteps);
+%         scatter(P(Gidx), majA(id)+minA(id),'MarkerEdgeColor',[0 0 steps]/nSteps); 
+%         xlabel('Pressure')
+%         ylabel('Perimeter^2')
+%         hold on 
+%         
+end
+
+%%
+if (mod(seed,20)== 0)
+destination = '../Data/Processed/'; 
+
+if (~exist(destination,'dir'))
+    mkdir(destination); 
+end
+
+
+Stepid = [num2str(first_step) 'TO' num2str(last_step)]; 
+
+savefile = [destination 'Stat1_' config runid '_thresh_' num2str(xythresh) '.mat']; 
+
+save(savefile, 'realCell','dualCell','-v7.3'); 
+
+
+
+
+
+end
+
+
+%% Save processed data
+
+
+
+%% Plot mean stuff
