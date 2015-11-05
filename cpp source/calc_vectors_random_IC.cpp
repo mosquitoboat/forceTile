@@ -253,12 +253,12 @@ void Print_Nbr_Info(NbrMap& nAdj)
 
 }
 
-void Print_Position(PosMap& pos)
+void Print_Position(PosMap& pos, const int& nCycle)
 {
 
     ofstream fout("Height_Positions.txt",ios::out|ios::app);
 
-	for (int i = 1; i< pos.size(); i++)
+	for (int i = 1; i<=nCycle; i++)
 		{
 
 		       fout << "\t"<< pos[i].x << "\t"<< pos[i].y<<"\n";
@@ -409,7 +409,7 @@ int main(int argc, char const *argv[])
 
 	Iterate_Postion(pos,nbr,nIter);
 
-	Print_Position(pos);
+	Print_Position(pos,nCycle);
 
 //	nbr[1].push_back(nv);
 	//Print_Nbr_Info(nbr);
